@@ -1,0 +1,252 @@
+#include <QxClipper>
+#include "clipper-4.8.2/clipper.hpp"
+
+static int ConversionFactor = 100;
+
+Qx::ClipType clipTypeFromClipper(ClipperLib::ClipType type)
+{
+  switch(type)
+  {
+  case ClipperLib::ctDifference:
+    return Qx::Difference;
+  case ClipperLib::ctIntersection:
+    return Qx::Intersection;
+  case ClipperLib::ctUnion:
+    return Qx::Union;
+  case ClipperLib::ctXor:
+    return Qx::Xor;
+  default:
+    return static_cast<Qx::ClipType>(type);
+  }
+}
+
+ClipperLib::ClipType clipTypeFromQxClipper(Qx::ClipType type)
+{
+  switch(type)
+  {
+  case Qx::Difference:
+    return ClipperLib::ctDifference;
+  case Qx::Intersection:
+    return ClipperLib::ctIntersection;
+  case Qx::Union:
+    return ClipperLib::ctUnion;
+  case Qx::Xor:
+    return ClipperLib::ctXor;
+  default:
+    return static_cast<ClipperLib::ClipType>(type);
+  }
+}
+
+Qt::PenJoinStyle joinTypeFromClipper(ClipperLib::JoinType type)
+{
+  switch(type)
+  {
+  case ClipperLib::jtMiter:
+    return Qt::MiterJoin;
+  case ClipperLib::jtRound:
+    return Qt::RoundJoin;
+  case ClipperLib::jtSquare:
+    return Qt::BevelJoin;
+  default:
+    return Qt::BevelJoin;
+  }
+}
+
+ClipperLib::JoinType joinTypeFromQxClipper(Qt::PenJoinStyle type)
+{
+  switch(type)
+  {
+  case Qt::MiterJoin:
+    return ClipperLib::jtMiter;
+  case Qt::RoundJoin:
+    return ClipperLib::jtRound;
+  case Qt::BevelJoin:
+    return ClipperLib::jtSquare;
+  default:
+    return ClipperLib::jtSquare;
+  }
+}
+
+Qx::Orientation orientationFromClipper(bool orientation)
+{
+  if(orientation)
+    return Qx::Clockwise;
+  return Qx::CounterClockwise;
+}
+
+bool orientationFromQxClipper(Qx::Orientation type)
+{
+  return (type == Qx::Clockwise);
+}
+
+void polygonFromQxClipper(const QPolygonF& qxPolygon,
+                          ClipperLib::Polygon &clipperPolygon)
+{
+  clipperPolygon.clear();
+  clipperPolygon.reserve(qxPolygon.size());
+  foreach(const QPointF &point, qxPolygon)
+  {
+    clipperPolygon.push_back(ClipperLib::IntPoint(point.x()*ConversionFactor,
+                                                  point.y()*ConversionFactor));
+  }
+}
+
+void polygonFromClipper(const ClipperLib::Polygon &clipperPolygon,
+                        QPolygonF &qxPolygon)
+{
+  qxPolygon.clear();
+  qxPolygon.resize(clipperPolygon.size());
+  for(unsigned int i = 0; i < clipperPolygon.size(); ++i)
+  {
+    qxPolygon[i] = QPointF(static_cast<qreal>(clipperPolygon[i].X)/ConversionFactor,
+                           static_cast<qreal>(clipperPolygon[i].Y)/ConversionFactor);
+  }
+}
+
+void setOrientationHelper(ClipperLib::Polygon &polygon, bool orientation)
+{
+  if(ClipperLib::Orientation(polygon) != orientation)
+    ClipperLib::ReversePoints(polygon);
+}
+
+
+
+Qx::Orientation QxClipper::orientation(const QPolygonF &polygon)
+{
+  ClipperLib::Polygon clipperPolygon;
+  polygonFromQxClipper(polygon, clipperPolygon);
+  return orientationFromClipper(ClipperLib::Orientation(clipperPolygon));
+}
+
+void QxClipper::setOrientation(QPolygonF &polygon, Qx::Orientation orientation)
+{
+  ClipperLib::Polygon clipperPolygon;
+  polygonFromQxClipper(polygon, clipperPolygon);
+  setOrientationHelper(clipperPolygon, orientationFromQxClipper(orientation));
+  polygonFromClipper(clipperPolygon, polygon);
+}
+
+qreal QxClipper::area(const QPolygonF &polygon)
+{
+  ClipperLib::Polygon poly;
+  polygonFromQxClipper(polygon, poly);
+  return static_cast<qreal>(ClipperLib::Area(poly)/(ConversionFactor*ConversionFactor));
+}
+
+QPolygonF QxClipper::offseted(const QPolygonF &polygon,
+                   qreal delta,
+                   Qt::PenJoinStyle joinStyle,
+                   qreal miterLimit)
+{
+  ClipperLib::Polygons polygons(1);
+  polygonFromQxClipper(polygon, polygons[0]);
+  ClipperLib::OffsetPolygons(polygons, polygons,
+                             static_cast<double>(delta*ConversionFactor),
+                             joinTypeFromQxClipper(joinStyle),
+                             static_cast<double>(miterLimit));
+
+  if(polygon.isEmpty())
+    return QPolygonF();
+  QPolygonF result;
+  polygonFromClipper(polygons.front(), result);
+  return result;
+}
+
+QList<QPolygonF> QxClipper::offseted(const QList<QPolygonF> &polygons,
+                   qreal delta,
+                   Qt::PenJoinStyle joinStyle,
+                   qreal miterLimit)
+{
+  // Offset
+  ClipperLib::Polygons clipperPolygons(polygons.count());
+  for(unsigned int i = 0; i < clipperPolygons.size(); ++i)
+    polygonFromQxClipper(polygons[i], clipperPolygons[i]);
+  ClipperLib::OffsetPolygons(clipperPolygons, clipperPolygons,
+                             static_cast<double>(delta),
+                             joinTypeFromQxClipper(joinStyle),
+                             static_cast<double>(miterLimit));
+
+  // Return
+  QList<QPolygonF> result;
+  result.reserve(clipperPolygons.size());
+  for(unsigned int i = 0; i < clipperPolygons.size(); ++i)
+    polygonFromClipper(clipperPolygons[i], result[i]);
+  return result;
+}
+
+/**
+  */
+QList<QPolygonF> QxClipper::simplified(const QPolygonF &polygon)
+{
+  ClipperLib::Polygon clipperPolygon;
+  polygonFromQxClipper(polygon, clipperPolygon);
+  ClipperLib::Polygons clipperPolygons;
+  ClipperLib::SimplifyPolygon(clipperPolygon,
+                              clipperPolygons);
+
+  QList<QPolygonF> result;
+  result.reserve(clipperPolygons.size());
+  for(unsigned int i = 0; i < clipperPolygons.size(); ++i)
+    polygonFromClipper(clipperPolygons[i],
+                       result[i]);
+  return result;
+}
+
+/**
+  */
+QList<QPolygonF> QxClipper::simplified(const QList<QPolygonF> &polygons)
+{
+  ClipperLib::Polygons clipperPolygons(polygons.count());
+  for(unsigned int i = 0; i < clipperPolygons.size(); ++i)
+    polygonFromQxClipper(polygons[i], clipperPolygons[i]);
+  ClipperLib::SimplifyPolygons(clipperPolygons);
+
+  QList<QPolygonF> result;
+  result.reserve(clipperPolygons.size());
+  for(unsigned int i = 0; i < clipperPolygons.size(); ++i)
+    polygonFromClipper(clipperPolygons[i],
+                       result[i]);
+  return result;
+}
+
+/**
+  */
+QPolygonF QxClipper::reversed(const QPolygonF &polygon)
+{
+  ClipperLib::Polygon clipperPolygon;
+  polygonFromQxClipper(polygon, clipperPolygon);
+  ClipperLib::ReversePoints(clipperPolygon);
+
+  QPolygonF result;
+  polygonFromClipper(clipperPolygon, result);
+  return result;
+}
+
+/**
+  */
+QList<QPolygonF> reversed(const QList<QPolygonF> &polygons)
+{
+  ClipperLib::Polygons clipperPolygons(polygons.count());
+  for(unsigned int i = 0; i < clipperPolygons.size(); ++i)
+    polygonFromQxClipper(polygons[i], clipperPolygons[i]);
+  ClipperLib::ReversePoints(clipperPolygons);
+
+  QList<QPolygonF> result;
+  result.reserve(clipperPolygons.size());
+  for(unsigned int i = 0; i < clipperPolygons.size(); ++i)
+    polygonFromClipper(clipperPolygons[i],
+                       result[i]);
+  return result;
+}
+
+/**
+  */
+bool QxClipper::isComplex(const QPolygonF &polygon)
+{
+  ClipperLib::Polygon clipperPolygon;
+  polygonFromQxClipper(polygon, clipperPolygon);
+
+  ClipperLib::Polygons simplified;
+  ClipperLib::SimplifyPolygon(clipperPolygon, simplified);
+  return simplified.size() > 1;
+}

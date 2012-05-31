@@ -1,0 +1,12 @@
+﻿#ifndef QXCLIPPER_GLOBAL_H
+#define QXCLIPPER_GLOBAL_H
+
+#include <QtGlobal>
+
+#if defined(QXCLIPPER_LIBRARY)
+#  define QXCLIPPER_EXPORT Q_DECL_EXPORT
+#else
+#  define QXCLIPPER_EXPORT Q_DECL_IMPORT
+#endif
+
+#endif // QXCLIPPER_GLOBAL_H
