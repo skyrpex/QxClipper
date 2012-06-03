@@ -6,12 +6,12 @@ DEFINES += QXCLIPPER_LIBRARY
 
 SOURCES += \
   $$PWD/src/qxclipper.cpp \
-  $$PWD/src/clipper-4.8.2/clipper.cpp
+  $$PWD/src/clipper/clipper.cpp
 
 HEADERS += \
   $$PWD/include/QxClipper \
   $$PWD/include/qxclipper.h \
   $$PWD/include/qxclipper_global.h \
-  $$PWD/src/clipper-4.8.2/clipper.hpp
-    
+  $$PWD/src/clipper/clipper.hpp
+
 INCLUDEPATH += $$PWD/include

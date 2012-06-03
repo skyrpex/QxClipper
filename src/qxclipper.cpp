@@ -1,5 +1,6 @@
 #include <QxClipper>
-#include "clipper-4.8.2/clipper.hpp"
+#include <QDebug>
+#include "clipper/clipper.hpp"
 
 static int ConversionFactor = 100;
 
@@ -111,6 +112,40 @@ void setOrientationHelper(ClipperLib::Polygon &polygon, bool orientation)
 
 
 
+
+QList<QPolygonF> QxClipper::merged(const QList<QPolygonF> &polygons)
+{
+  ClipperLib::Polygons clipperPolygons(polygons.count());
+  for(unsigned int i = 0; i < clipperPolygons.size(); ++i)
+    polygonFromQxClipper(polygons[i], clipperPolygons[i]);
+//  qDebug() << clipperPolygons.size();
+
+  ClipperLib::Clipper clipper;
+  clipper.AddPolygons(clipperPolygons, ClipperLib::ptSubject);
+
+  ClipperLib::Polygons solution;
+  clipper.Execute(ClipperLib::ctUnion, solution, ClipperLib::pftPositive);
+//  qDebug() << solution.size();
+
+  // Return
+  QList<QPolygonF> result;
+  result.reserve(solution.size());
+  for(unsigned int i = 0; i < solution.size(); ++i)
+  {
+    QPolygonF poly;
+    polygonFromClipper(solution[i], poly);
+    result << poly;
+  }
+  return result;
+}
+
+//bool QxClipper::addPolygon(const QPolygonF &polygon, Qx::PolygonType type)
+//{
+//  ClipperLib::Polygon clipperPolygon;
+//  polygonFromQxClipper(polygon, clipperPolygon);
+//  return m_clipper.AddPolygon(clipperPolygon, polygonFromQxClipper(type));
+//}
+
 Qx::Orientation QxClipper::orientation(const QPolygonF &polygon)
 {
   ClipperLib::Polygon clipperPolygon;
@@ -201,11 +236,22 @@ QList<QPolygonF> QxClipper::simplified(const QList<QPolygonF> &polygons)
     polygonFromQxClipper(polygons[i], clipperPolygons[i]);
   ClipperLib::SimplifyPolygons(clipperPolygons);
 
+//  QList<QPolygonF> result;
+//  result.reserve(clipperPolygons.size());
+//  for(unsigned int i = 0; i < clipperPolygons.size(); ++i)
+//    polygonFromClipper(clipperPolygons[i],
+//                       result[i]);
+//  return result;
+
+  // Return
   QList<QPolygonF> result;
   result.reserve(clipperPolygons.size());
   for(unsigned int i = 0; i < clipperPolygons.size(); ++i)
-    polygonFromClipper(clipperPolygons[i],
-                       result[i]);
+  {
+    QPolygonF poly;
+    polygonFromClipper(clipperPolygons[i], poly);
+    result << poly;
+  }
   return result;
 }
 

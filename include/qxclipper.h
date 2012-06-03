@@ -44,11 +44,18 @@ enum FillRule
 };
 }
 
+//class ClipperLib::Clipper;
+
 /**
   */
 class QXCLIPPER_EXPORT QxClipper
 {
 public:
+//  bool addPolygon(const QPolygonF &polygon, Qx::PolygonType type);
+//  bool execute();
+
+  static QList<QPolygonF> merged(const QList<QPolygonF> &polygons);
+
   /**
     */
   static Qx::Orientation orientation(const QPolygonF &polygon);
@@ -95,6 +102,9 @@ public:
   /**
     */
   static bool isComplex(const QPolygonF &polygon);
+
+private:
+//  ClipperLib::Clipper m_clipper;
 };
 
 #endif // QXCLIPPER_H

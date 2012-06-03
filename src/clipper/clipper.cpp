@@ -1,8 +1,8 @@
 /*******************************************************************************
 *                                                                              *
 * Author    :  Angus Johnson                                                   *
-* Version   :  4.8.2                                                           *
-* Date      :  21 May 2012                                                     *
+* Version   :  4.8.4                                                           *
+* Date      :  1 June 2012                                                     *
 * Website   :  http://www.angusj.com                                           *
 * Copyright :  Angus Johnson 2010-2012                                         *
 *                                                                              *
@@ -61,7 +61,7 @@ enum Direction { dRightToLeft, dLeftToRight };
 
 inline long64 Abs(long64 val)
 {
-  if (val < 0) return -val; else return val;
+  return val < 0 ? -val : val;
 }
 //------------------------------------------------------------------------------
 
@@ -304,6 +304,20 @@ private:
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 
+bool FullRangeNeeded(const Polygon &pts)
+{
+  bool result = false;
+  for (Polygon::size_type i = 0; i <  pts.size(); ++i)
+  {
+    if (Abs(pts[i].X) > hiRange || Abs(pts[i].Y) > hiRange)
+        throw "Coordinate exceeds range bounds.";
+      else if (Abs(pts[i].X) > loRange || Abs(pts[i].Y) > loRange)
+        result = true;
+  }
+  return result;
+}
+//------------------------------------------------------------------------------
+  
 bool Orientation(const Polygon &poly)
 {
   int highI = (int)poly.size() -1;
@@ -390,23 +404,48 @@ double Area(const Polygon &poly)
 {
   int highI = (int)poly.size() -1;
   if (highI < 2) return 0;
-  double a;
-  a = (double)poly[highI].X * poly[0].Y - (double)poly[0].X * poly[highI].Y;
-  for (int i = 0; i < highI; ++i)
-    a += (double)poly[i].X * poly[i+1].Y - (double)poly[i+1].X * poly[i].Y;
-  return a/2;
+
+  if (FullRangeNeeded(poly)) {
+    Int128 a;
+    a = (Int128(poly[highI].X) * Int128(poly[0].Y)) -
+      Int128(poly[0].X) * Int128(poly[highI].Y);
+    for (int i = 0; i < highI; ++i)
+      a += Int128(poly[i].X) * Int128(poly[i+1].Y) -
+        Int128(poly[i+1].X) * Int128(poly[i].Y);
+    return a.AsDouble() / 2;
+  }
+  else
+  {
+    double a;
+    a = (double)poly[highI].X * poly[0].Y - (double)poly[0].X * poly[highI].Y;
+    for (int i = 0; i < highI; ++i)
+      a += (double)poly[i].X * poly[i+1].Y - (double)poly[i+1].X * poly[i].Y;
+    return a/2;
+  }
 }
 //------------------------------------------------------------------------------
 
-double Area(const OutRec &outRec)
+double Area(const OutRec &outRec, bool UseFullInt64Range)
 {
   OutPt *op = outRec.pts;
-  double a = 0;
-  do {
-    a += (op->prev->pt.X * op->pt.Y) - (op->pt.X * op->prev->pt.Y);
-    op = op->next;
-  } while (op != outRec.pts);
-  return a/2;
+  if (UseFullInt64Range) {
+    Int128 a(0);
+    do {
+      a += (Int128(op->prev->pt.X) * Int128(op->pt.Y)) -
+        Int128(op->pt.X) * Int128(op->prev->pt.Y);
+      op = op->next;
+    } while (op != outRec.pts);
+    return a.AsDouble() / 2;
+  }
+  else
+  {
+    double a = 0;
+    do {
+      a += (op->prev->pt.X * op->pt.Y) - (op->pt.X * op->prev->pt.Y);
+      op = op->next;
+    } while (op != outRec.pts);
+    return a/2;
+  }
 }
 //------------------------------------------------------------------------------
 
@@ -1182,7 +1221,7 @@ bool PolySort(OutRec *or1, OutRec *or2)
   {
     if (or1->pts != or2->pts)
     {
-      if (or1->pts) return true; else return false;
+      return or1->pts ? true : false;
     }
     else return false;
   }
@@ -1196,8 +1235,7 @@ bool PolySort(OutRec *or1, OutRec *or2)
   int result = i1 - i2;
   if (result == 0 && (or1->isHole != or2->isHole))
   {
-    if (or1->isHole) return false;
-    else return true;
+    return or1->isHole ? false : true;
   }
   else return result < 0;
 }
@@ -1269,7 +1307,7 @@ bool Clipper::ExecuteInternal(bool fixHoleLinkages)
       if (outRec->isHole && fixHoleLinkages) FixHoleLinkage(outRec);
 
       if (outRec->bottomPt == outRec->bottomFlag &&
-        (Orientation(outRec, m_UseFullRange) != (Area(*outRec) > 0)))
+        (Orientation(outRec, m_UseFullRange) != (Area(*outRec, m_UseFullRange) > 0)))
       {
         DisposeBottomPt(*outRec);
         FixupOutPolygon(*outRec);
@@ -1540,8 +1578,10 @@ void Clipper::AddLocalMaxPoly(TEdge *e1, TEdge *e2, const IntPoint &pt)
     e1->outIdx = -1;
     e2->outIdx = -1;
   }
-  else
-    AppendPolygon( e1, e2 );
+  else if (e1->outIdx < e2->outIdx) 
+    AppendPolygon(e1, e2); 
+  else 
+    AppendPolygon(e2, e1);
 }
 //------------------------------------------------------------------------------
 
@@ -2102,7 +2142,7 @@ void Clipper::AddOutPt(TEdge *e, const IntPoint &pt)
         } else
         {
           opBot = outRec->pts->prev;
-          op2 = opBot->next; //op2 == left side
+          op2 = opBot->prev; //op2 == left side
           if (opBot->pt.Y != op2->pt.Y && opBot->pt.Y != pt.Y &&
             ((opBot->pt.X - pt.X)/(opBot->pt.Y - pt.Y) >
             (opBot->pt.X - op2->pt.X)/(opBot->pt.Y - op2->pt.Y)))
@@ -2271,8 +2311,7 @@ void Clipper::SwapPositionsInSEL(TEdge *edge1, TEdge *edge2)
 
 TEdge* GetNextInAEL(TEdge *e, Direction dir)
 {
-  if( dir == dLeftToRight ) return e->nextInAEL;
-  else return e->prevInAEL;
+  return dir == dLeftToRight ? e->nextInAEL : e->prevInAEL;
 }
 //------------------------------------------------------------------------------
 
@@ -2489,12 +2528,12 @@ bool Process1Before2(IntersectNode &node1, IntersectNode &node2)
     if (node1.edge1 == node2.edge1 || node1.edge2 == node2.edge1)
     {
       result = node2.pt.X > node1.pt.X;
-      if (node2.edge1->dx > 0) return !result; else return result;
+      return node2.edge1->dx > 0 ? !result : result;
     }
     else if (node1.edge1 == node2.edge2 || node1.edge2 == node2.edge2)
     {
       result = node2.pt.X > node1.pt.X;
-      if (node2.edge2->dx > 0) return !result; else return result;
+      return node2.edge2->dx > 0 ? !result : result;
     }
     else return node2.pt.X > node1.pt.X;
   }
@@ -2820,8 +2859,7 @@ bool Clipper::FixupIntersections()
 
 bool E2InsertsBeforeE1(TEdge &e1, TEdge &e2)
 {
-  if (e2.xcurr == e1.xcurr) return e2.dx > e1.dx;
-  else return e2.xcurr < e1.xcurr;
+  return e2.xcurr == e1.xcurr ? e2.dx > e1.dx : e2.xcurr < e1.xcurr;
 }
 //------------------------------------------------------------------------------
 
