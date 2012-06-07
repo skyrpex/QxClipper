@@ -174,6 +174,8 @@ void QxClipper::setOrientation(QPolygonF &polygon, Qx::Orientation orientation)
   polygonFromClipper(clipperPolygon, polygon);
 }
 
+/**
+  */
 qreal QxClipper::area(const QPolygonF &polygon)
 {
   ClipperLib::Polygon poly;
@@ -181,6 +183,8 @@ qreal QxClipper::area(const QPolygonF &polygon)
   return static_cast<qreal>(ClipperLib::Area(poly)/(ConversionFactor*ConversionFactor));
 }
 
+/**
+  */
 QPolygonF QxClipper::offseted(const QPolygonF &polygon,
                               qreal delta,
                               Qt::PenJoinStyle joinStyle,
@@ -200,6 +204,8 @@ QPolygonF QxClipper::offseted(const QPolygonF &polygon,
   return result;
 }
 
+/**
+  */
 QList<QPolygonF> QxClipper::offseted(const QList<QPolygonF> &polygons,
                                      qreal delta,
                                      Qt::PenJoinStyle joinStyle,
@@ -208,9 +214,8 @@ QList<QPolygonF> QxClipper::offseted(const QList<QPolygonF> &polygons,
   // Offset
   ClipperLib::Polygons clipperPolygons;
   polygonsFromQxClipper(polygons, clipperPolygons);
-
   ClipperLib::OffsetPolygons(clipperPolygons, clipperPolygons,
-                             static_cast<double>(delta),
+                             static_cast<double>(delta*ConversionFactor),
                              joinTypeFromQxClipper(joinStyle),
                              static_cast<double>(miterLimit));
 
