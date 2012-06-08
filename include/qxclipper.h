@@ -51,6 +51,12 @@ enum FillRule
 class QXCLIPPER_EXPORT QxClipper
 {
 public:
+  struct Polygon
+  {
+    QPolygonF boundary;
+    QList<QPolygonF> holes;
+  };
+
 //  bool addPolygon(const QPolygonF &polygon, Qx::PolygonType type);
 //  bool execute();
 
