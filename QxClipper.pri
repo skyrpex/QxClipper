@@ -1,2 +1,2 @@
-INCLUDEPATH += $$PWD/include
-LIBS += -L$$PWD/bin -lQxClipper
+INCLUDEPATH *= $$PWD/include
+LIBS *= -L$$PWD/bin -lQxClipper
