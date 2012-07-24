@@ -2,6 +2,9 @@
 Clipper Change Log
 ============================================================
 
+v4.8.5 - 15 July 2012
+* Bugfix: Potential for memory overflow errors in OffsetPolygons().
+
 v4.8.4 - 1 June 2012
 * Bugfix: Another obscure bug affecting ExPolygons structure.
 
