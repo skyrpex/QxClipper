@@ -129,7 +129,7 @@ void polygonsFromClipper(const ClipperLib::Polygons &clipperPolygons,
 void setOrientationHelper(ClipperLib::Polygon &polygon, bool orientation)
 {
   if(ClipperLib::Orientation(polygon) != orientation)
-    ClipperLib::ReversePoints(polygon);
+    ClipperLib::ReversePolygon(polygon);
 }
 
 
@@ -263,7 +263,7 @@ QPolygonF QxClipper::reversed(const QPolygonF &polygon)
 {
   ClipperLib::Polygon clipperPolygon;
   polygonFromQxClipper(polygon, clipperPolygon);
-  ClipperLib::ReversePoints(clipperPolygon);
+  ClipperLib::ReversePolygon(clipperPolygon);
 
   QPolygonF result;
   polygonFromClipper(clipperPolygon, result);
@@ -277,7 +277,7 @@ QList<QPolygonF> reversed(const QList<QPolygonF> &polygons)
   ClipperLib::Polygons clipperPolygons(polygons.count());
   for(unsigned int i = 0; i < clipperPolygons.size(); ++i)
     polygonFromQxClipper(polygons[i], clipperPolygons[i]);
-  ClipperLib::ReversePoints(clipperPolygons);
+  ClipperLib::ReversePolygons(clipperPolygons);
 
   // Return
   QList<QPolygonF> result;
